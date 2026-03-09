@@ -1,0 +1,14 @@
+{
+  "name": "walkable-blender",
+  "version": "1.0.0",
+  "description": "Interactive 3D castle walkthrough using Three.js",
+  "scripts": {
+    "start": "http-server . -p 8080 -o",
+    "lint": "htmlhint index.html",
+    "test": "node scripts/validate.js"
+  },
+  "devDependencies": {
+    "htmlhint": "^1.1.4",
+    "http-server": "^14.1.1"
+  }
+}
