@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Castle Walkthrough</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; }
+  canvas { display: block; }
+
+  #start {
+    position: fixed; inset: 0;
+    background: #111;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #fff; font-family: monospace;
+    cursor: pointer; z-index: 10;
+  }
+  #start h1 { font-size: 28px; margin-bottom: 16px; }
+  #start p  { color: #888; font-size: 14px; line-height: 2; }
+  #start button {
+    margin-top: 24px; padding: 10px 30px;
+    background: #333; color: #fff;
+    border: 1px solid #666; font-size: 16px;
+    font-family: monospace; cursor: pointer;
+  }
+  #start button:hover { background: #444; }
+  #start button:disabled { opacity: 0.4; cursor: default; }
+
+  #loadbar {
+    width: 200px; height: 4px; background: #333;
+    margin-top: 16px; border-radius: 2px; overflow: hidden;
+  }
+  #loadfill {
+    height: 100%; width: 0%; background: #6cf;
+    transition: width 0.2s;
+  }
+
+  #hint {
+    position: fixed; bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    color: #555; font-family: monospace; font-size: 12px;
+    pointer-events: none;
+  }
+
+  .joy {
+    position: fixed; bottom: 30px;
+    width: 110px; height: 110px; border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.2);
+    display: none; touch-action: none;
+  }
+  #jL { left: 24px; }
+  #jR { right: 24px; }
+  .knob {
+    position: absolute; width: 44px; height: 44px;
+    border-radius: 50%; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,0.25);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h1>Castle Walkthrough</h1>
+  <p>
+    W / A / S / D — Move<br>
+    Mouse — Look around<br>
+    ESC — Release mouse<br>
+    <br>
+    <em style="color:#555">Mobile: dual joysticks appear automatically</em>
+  </p>
+  <div id="loadbar"><div id="loadfill"></div></div>
+  <button id="startBtn" disabled onclick="begin()">Loading…</button>
+</div>
+
+<div id="hint">WASD to move · Mouse to look · ESC to release</div>
+
+<div class="joy" id="jL"><div class="knob" id="kL"></div></div>
+<div class="joy" id="jR"><div class="knob" id="kR"></div></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ── Renderer ──────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+// ── Scene ─────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+
+// ── Camera ────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 1.7, 5);
+
+// ── Lights ────────────────────────────────────────────
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(30, 50, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 200;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
+sun.shadow.camera.left = -60;
+sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60;
+sun.shadow.camera.bottom = -60;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight(0x87ceeb, 0x556633, 0.6);
+scene.add(hemi);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+// ── Load GLB Model ───────────────────────────────────
+const loader = new GLTFLoader();
+const collisionMeshes = [];
+let modelLoaded = false;
+
+loader.load(
+  'Castle.glb?v=' + Date.now(),
+  (gltf) => {
+    const model = gltf.scene;
+
+    // Enable shadows on all meshes and collect for collision
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        collisionMeshes.push(child);
+      }
+    });
+
+    scene.add(model);
+
+    // Compute bounding box to position camera
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Adjust shadow camera to cover the model
+    const maxDim = Math.max(size.x, size.y, size.z);
+    sun.shadow.camera.left = -maxDim;
+    sun.shadow.camera.right = maxDim;
+    sun.shadow.camera.top = maxDim;
+    sun.shadow.camera.bottom = -maxDim;
+    sun.shadow.camera.far = maxDim * 3;
+    sun.shadow.camera.updateProjectionMatrix();
+    sun.position.set(center.x + maxDim * 0.5, center.y + maxDim, center.z + maxDim * 0.5);
+    sun.target.position.copy(center);
+    scene.add(sun.target);
+
+    // Start on the ground plane, outside the castle structure
+    camera.position.set(center.x, box.min.y + PLAYER_HEIGHT, center.z + size.z * 0.3);
+    floorY = box.min.y;
+
+    // Scale movement speed to model size
+    moveSpeed = Math.max(6, maxDim * 0.03);
+
+    // Adjust fog based on model size
+    scene.fog = new THREE.FogExp2(0x87ceeb, 0.5 / maxDim);
+
+    modelLoaded = true;
+
+    // Enable start button
+    const btn = document.getElementById('startBtn');
+    btn.disabled = false;
+    btn.textContent = 'Click to Start';
+  },
+  (progress) => {
+    if (progress.total > 0) {
+      const pct = (progress.loaded / progress.total) * 100;
+      document.getElementById('loadfill').style.width = pct + '%';
+    }
+  },
+  (error) => {
+    console.error('Error loading model:', error);
+    document.getElementById('startBtn').textContent = 'Load Error';
+  }
+);
+
+// ── Collision System (Raycasting) ────────────────────
+const PLAYER_HEIGHT = 1.7;
+const PLAYER_RADIUS = 0.3;
+const STEP_HEIGHT = 0.4;
+const GRAVITY = 20;
+let velocityY = 0;
+let onGround = false;
+let floorY = 0;
+let moveSpeed = 6;
+
+const raycaster = new THREE.Raycaster();
+
+function getGroundHeight(x, z) {
+  // Cast from well above the camera downward
+  const rayOrigin = new THREE.Vector3(x, camera.position.y + 50, z);
+  raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+  raycaster.far = 500;
+  const hits = raycaster.intersectObjects(collisionMeshes, false);
+  // Find the highest surface below or near the camera
+  for (const hit of hits) {
+    if (hit.point.y <= camera.position.y + STEP_HEIGHT) {
+      return hit.point.y;
+    }
+  }
+  return floorY;
+}
+
+function canMoveTo(px, pz) {
+  const origin = new THREE.Vector3(camera.position.x, camera.position.y - PLAYER_HEIGHT + STEP_HEIGHT + 0.1, camera.position.z);
+  const dir = new THREE.Vector3(px - camera.position.x, 0, pz - camera.position.z);
+  const dist = dir.length();
+  if (dist < 0.001) return true;
+  dir.normalize();
+
+  // Cast rays at multiple heights to catch walls
+  const heights = [0, PLAYER_HEIGHT * 0.5, PLAYER_HEIGHT * 0.9];
+  for (const h of heights) {
+    raycaster.set(
+      new THREE.Vector3(camera.position.x, camera.position.y - PLAYER_HEIGHT + STEP_HEIGHT + 0.1 + h, camera.position.z),
+      dir
+    );
+    raycaster.far = dist + PLAYER_RADIUS;
+    const hits = raycaster.intersectObjects(collisionMeshes, false);
+    if (hits.length > 0 && hits[0].distance < dist + PLAYER_RADIUS) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// ── Input ─────────────────────────────────────────────
+const keys = {};
+document.addEventListener('keydown', e => keys[e.code] = true);
+document.addEventListener('keyup',   e => keys[e.code] = false);
+
+let yaw = 0, pitch = 0, locked = false, mouseDown = false;
+
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === renderer.domElement;
+});
+
+document.addEventListener('mousemove', e => {
+  // Pointer lock mode: free mouse look
+  if (locked) {
+    yaw   -= e.movementX * 0.002;
+    pitch -= e.movementY * 0.002;
+    pitch  = Math.max(-1.3, Math.min(1.3, pitch));
+    return;
+  }
+  // Fallback: click-drag to look
+  if (mouseDown && started) {
+    yaw   -= e.movementX * 0.004;
+    pitch -= e.movementY * 0.004;
+    pitch  = Math.max(-1.3, Math.min(1.3, pitch));
+  }
+});
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  mouseDown = true;
+});
+document.addEventListener('mouseup', () => {
+  mouseDown = false;
+});
+
+// ── Touch Joysticks ───────────────────────────────────
+const isTouch = 'ontouchstart' in window;
+const jL = document.getElementById('jL');
+const jR = document.getElementById('jR');
+const kL = document.getElementById('kL');
+const kR = document.getElementById('kR');
+
+if (isTouch) {
+  jL.style.display = jR.style.display = 'block';
+}
+
+const touch = { lx:0, ly:0, rx:0, ry:0, lid:null, rid:null };
+
+function joyOffset(zone, cx, cy) {
+  const r = zone.getBoundingClientRect();
+  const ox = cx - r.left - r.width/2;
+  const oy = cy - r.top  - r.height/2;
+  const max = r.width/2 - 22;
+  const len = Math.sqrt(ox*ox + oy*oy);
+  const c = Math.min(len, max);
+  const nx = len > 0 ? ox/len*c : 0;
+  const ny = len > 0 ? oy/len*c : 0;
+  return { nx, ny, fx: nx/max, fy: ny/max };
+}
+
+document.addEventListener('touchstart', e => {
+  [...e.changedTouches].forEach(t => {
+    if (t.clientX < innerWidth/2) touch.lid = t.identifier;
+    else touch.rid = t.identifier;
+  });
+  if (document.getElementById('start').style.display !== 'none') {
+    document.getElementById('start').style.display = 'none';
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  [...e.changedTouches].forEach(t => {
+    if (t.identifier === touch.lid) {
+      const {nx,ny,fx,fy} = joyOffset(jL, t.clientX, t.clientY);
+      kL.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+      touch.lx = fx; touch.ly = fy;
+    }
+    if (t.identifier === touch.rid) {
+      const {nx,ny,fx,fy} = joyOffset(jR, t.clientX, t.clientY);
+      kR.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+      touch.rx = fx; touch.ry = fy;
+    }
+  });
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  [...e.changedTouches].forEach(t => {
+    if (t.identifier === touch.lid) {
+      touch.lid = null; touch.lx = 0; touch.ly = 0;
+      kL.style.transform = 'translate(-50%,-50%)';
+    }
+    if (t.identifier === touch.rid) {
+      touch.rid = null; touch.rx = 0; touch.ry = 0;
+      kR.style.transform = 'translate(-50%,-50%)';
+    }
+  });
+}, { passive: true });
+
+// ── Start ─────────────────────────────────────────────
+let started = false;
+
+window.begin = function() {
+  if (!modelLoaded) return;
+  document.getElementById('start').style.display = 'none';
+  started = true;
+  renderer.domElement.requestPointerLock();
+};
+
+// Click canvas to re-engage pointer lock after ESC
+renderer.domElement.addEventListener('click', () => {
+  if (started && !locked) {
+    renderer.domElement.requestPointerLock();
+  }
+});
+
+// ── Main Loop ─────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (!modelLoaded) {
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // Touch look
+  if (touch.rid !== null) {
+    yaw   -= touch.rx * 0.04;
+    pitch -= touch.ry * 0.03;
+    pitch  = Math.max(-1.3, Math.min(1.3, pitch));
+  }
+
+  // Movement
+  const speed = moveSpeed;
+  const sin = Math.sin(yaw), cos = Math.cos(yaw);
+  let mx = 0, mz = 0;
+
+  if (started) {
+    if (keys['KeyW'] || keys['ArrowUp'])    { mx -= sin; mz -= cos; }
+    if (keys['KeyS'] || keys['ArrowDown'])  { mx += sin; mz += cos; }
+    if (keys['KeyA'] || keys['ArrowLeft'])  { mx -= cos; mz += sin; }
+    if (keys['KeyD'] || keys['ArrowRight']) { mx += cos; mz -= sin; }
+  }
+
+  // Touch move
+  if (touch.lid !== null) {
+    mx += touch.lx * cos + (-touch.ly) * (-sin);
+    mz += touch.lx * (-sin) + (-touch.ly) * (-cos);
+  }
+
+  // Normalize diagonal
+  const len = Math.sqrt(mx*mx + mz*mz);
+  if (len > 1) { mx /= len; mz /= len; }
+
+  const nx = camera.position.x + mx * speed * dt;
+  const nz = camera.position.z + mz * speed * dt;
+
+  // Horizontal collision (slide along walls)
+  if (canMoveTo(nx, camera.position.z)) camera.position.x = nx;
+  if (canMoveTo(camera.position.x, nz)) camera.position.z = nz;
+
+  // Gravity & ground following
+  const groundY = getGroundHeight(camera.position.x, camera.position.z);
+  const targetY = groundY + PLAYER_HEIGHT;
+
+  if (camera.position.y > targetY + 0.05) {
+    velocityY -= GRAVITY * dt;
+    camera.position.y += velocityY * dt;
+    onGround = false;
+    if (camera.position.y <= targetY) {
+      camera.position.y = targetY;
+      velocityY = 0;
+      onGround = true;
+    }
+  } else {
+    camera.position.y = targetY;
+    velocityY = 0;
+    onGround = true;
+  }
+
+  // Apply camera rotation
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
