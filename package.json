@@ -5,10 +5,17 @@
   "scripts": {
     "start": "http-server . -p 8080 -o",
     "lint": "htmlhint index.html",
-    "test": "node scripts/validate.js"
+    "test": "node scripts/validate.js",
+    "optimize": "node scripts/optimize-glb.mjs",
+    "optimize:2k": "node scripts/optimize-glb.mjs Castle.glb Castle.glb --max-size 2048 --quality 85",
+    "optimize:1k": "node scripts/optimize-glb.mjs Castle.glb Castle.glb --max-size 1024 --quality 80"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
     "htmlhint": "^1.1.4",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "sharp": "^0.34.5"
   }
 }
