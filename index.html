@@ -106,15 +106,15 @@ document.body.appendChild(renderer.domElement);
 
 // ── Scene ─────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.FogExp2(0x1a1a2e, 0.015);
 
 // ── Camera ────────────────────────────────────────────
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 2000);
 camera.position.set(0, 1.7, 5);
 
 // ── Lights ────────────────────────────────────────────
-const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
 sun.position.set(30, 50, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
@@ -128,14 +128,15 @@ sun.shadow.camera.top = 60;
 sun.shadow.camera.bottom = -60;
 scene.add(sun);
 
-const hemi = new THREE.HemisphereLight(0x87ceeb, 0x556633, 0.6);
+const hemi = new THREE.HemisphereLight(0x1a1a2e, 0x556633, 0.2);
 scene.add(hemi);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
 // ── Load GLB Model ───────────────────────────────────
 const loader = new GLTFLoader();
 const collisionMeshes = [];
+const torchLights = [];
 let modelLoaded = false;
 
 loader.load(
@@ -148,7 +149,26 @@ loader.load(
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        collisionMeshes.push(child);
+        // Skip flame/fire meshes from collision
+        const name = child.name.toLowerCase();
+        if (!name.includes('flame') && !name.includes('fire') && !name.includes('particle')) {
+          collisionMeshes.push(child);
+        }
+      }
+      // Configure point lights from GLB (torches via KHR_lights_punctual)
+      if (child.isPointLight) {
+        child.decay = 2;
+        child.castShadow = false;
+        if (!child.distance || child.distance === 0) child.distance = 15;
+        child.intensity = Math.min(child.intensity, 50);
+        torchLights.push(child);
+      }
+      if (child.isSpotLight) {
+        child.decay = 2;
+        child.castShadow = false;
+        if (!child.distance || child.distance === 0) child.distance = 20;
+        child.intensity = Math.min(child.intensity, 50);
+        torchLights.push(child);
       }
     });
 
@@ -159,8 +179,14 @@ loader.load(
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
 
-    // Adjust shadow camera to cover the model
+    // Scale camera far plane and ray distances to level size
     const maxDim = Math.max(size.x, size.y, size.z);
+    camera.far = Math.max(500, maxDim * 4);
+    camera.updateProjectionMatrix();
+    rayHeight = Math.max(50, size.y * 2);
+    rayFar = Math.max(500, size.y * 4);
+
+    // Adjust shadow camera to cover the model
     sun.shadow.camera.left = -maxDim;
     sun.shadow.camera.right = maxDim;
     sun.shadow.camera.top = maxDim;
@@ -179,7 +205,7 @@ loader.load(
     moveSpeed = Math.max(6, maxDim * 0.03);
 
     // Adjust fog based on model size
-    scene.fog = new THREE.FogExp2(0x87ceeb, 0.5 / maxDim);
+    scene.fog = new THREE.FogExp2(0x1a1a2e, 0.5 / maxDim);
 
     modelLoaded = true;
 
@@ -191,7 +217,10 @@ loader.load(
   (progress) => {
     if (progress.total > 0) {
       const pct = (progress.loaded / progress.total) * 100;
+      const mb = (progress.loaded / 1024 / 1024).toFixed(1);
       document.getElementById('loadfill').style.width = pct + '%';
+      document.getElementById('startBtn').textContent =
+        'Loading... ' + mb + ' MB (' + Math.round(pct) + '%)';
     }
   },
   (error) => {
@@ -209,14 +238,16 @@ let velocityY = 0;
 let onGround = false;
 let floorY = 0;
 let moveSpeed = 6;
+let rayHeight = 50;
+let rayFar = 500;
 
 const raycaster = new THREE.Raycaster();
 
 function getGroundHeight(x, z) {
   // Cast from well above the camera downward
-  const rayOrigin = new THREE.Vector3(x, camera.position.y + 50, z);
+  const rayOrigin = new THREE.Vector3(x, camera.position.y + rayHeight, z);
   raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-  raycaster.far = 500;
+  raycaster.far = rayFar;
   const hits = raycaster.intersectObjects(collisionMeshes, false);
   // Find the highest surface below or near the camera
   for (const hit of hits) {
@@ -429,6 +460,29 @@ function animate() {
     camera.position.y = targetY;
     velocityY = 0;
     onGround = true;
+  }
+
+  // Follow-camera shadow map (sharp shadows near player)
+  const shadowRange = 30;
+  sun.position.set(camera.position.x + 30, camera.position.y + 50, camera.position.z + 30);
+  sun.target.position.set(camera.position.x, camera.position.y, camera.position.z);
+  sun.target.updateMatrixWorld();
+  sun.shadow.camera.left = -shadowRange;
+  sun.shadow.camera.right = shadowRange;
+  sun.shadow.camera.top = shadowRange;
+  sun.shadow.camera.bottom = -shadowRange;
+  sun.shadow.camera.updateProjectionMatrix();
+
+  // Torch flicker animation
+  const time = clock.elapsedTime;
+  for (let i = 0; i < torchLights.length; i++) {
+    const light = torchLights[i];
+    if (!light._baseIntensity) light._baseIntensity = light.intensity;
+    light.intensity = light._baseIntensity * (1.0 +
+      0.05 * Math.sin(time * 6.0 + i * 1.7) +
+      0.03 * Math.sin(time * 13.0 + i * 3.1) +
+      0.02 * Math.random()
+    );
   }
 
   // Apply camera rotation
