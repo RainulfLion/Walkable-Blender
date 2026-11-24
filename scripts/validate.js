@@ -34,6 +34,10 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 check('HTML has DOCTYPE declaration', html.includes('<!DOCTYPE html>'));
 check('HTML has Three.js import map', html.includes('"three"'));
 check('HTML references Castle.glb', html.includes('Castle.glb'));
+for (const name of ['fresco1', 'fresco2', 'fresco3', 'fresco4', 'banner_red', 'banner_blue']) {
+  const found = ['.png', '.jpg', '.webp'].some((ext) => fs.existsSync(path.join(root, 'art', name + ext)));
+  check(`art/${name} image exists`, found);
+}
 check('HTML lists the clubhouse level', html.includes("file: 'ClubhouseCastle.glb'"));
 check('HTML has start button', html.includes('id="startBtn"'));
 check('HTML has canvas setup (WebGLRenderer)', html.includes('WebGLRenderer'));

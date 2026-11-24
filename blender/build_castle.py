@@ -13,6 +13,8 @@ Conventions used by the web viewer (index.html):
   * objects named COL_*  -> invisible collision geometry (walls, floors, ramps)
   * empty named "Spawn"  -> player start position / facing
   * point lights         -> exported as KHR_lights_punctual torches
+  * materials Art_<name> -> the viewer swaps in art/<name>.png|jpg|webp at load time,
+                            so frescoes and banners can be changed without Blender
 
 Layout (Blender units = metres, +Y is north, the gate faces south):
   gatehouse + drawbridge (south) -> courtyard with sunken fighting pit
@@ -595,23 +597,27 @@ def define_modules():
             box(px - 0.03, px + 0.03, py - 0.03, py + 0.03, 0.08, 0.24, 'linen', col=False, zm=False)
             pyramid(px, py, 0.24, 0.38, 0.03, 'flame')
 
-    for name, cloth in (('BannerRed', 'cloth_red'), ('BannerBlue', 'cloth_blue')):
+    for name, cloth, art in (('BannerRed', 'cloth_red', 'banner_red'), ('BannerBlue', 'cloth_blue', 'banner_blue')):
         with module(name):
             # hangs down from z=0, flat against a wall at local Y=0, facing -Y
             box(-0.6, 0.6, -0.07, -0.01, -0.02, 0.05, 'wood', col=False)
-            prof = [(-0.5, -0.05, 0), (-0.5, -0.05, -2.0), (0, -0.05, -2.4), (0.5, -0.05, -2.0), (0.5, -0.05, 0)]
+            prof = [(-0.5, -0.045, 0), (-0.5, -0.045, -2.0), (0, -0.045, -2.4), (0.5, -0.045, -2.0), (0.5, -0.045, 0)]
             extrude(prof, (0, 0.02, 0), cloth, col=False)
-            emit([(0, -0.055, -1.35), (0.28, -0.055, -1.0), (0, -0.055, -0.65), (-0.28, -0.055, -1.0)], 'gold', col=False)
+            # painted side: its own image (art/banner_red.*, art/banner_blue.*), top of image at the rod
+            front = [(-0.5, -2.0), (0, -2.4), (0.5, -2.0), (0.5, 0), (-0.5, 0)]
+            emit([(x, -0.05, z) for x, z in front], art, col=False,
+                 uv=[(x + 0.5, (z + 2.4) / 2.4) for x, z in front])
 
-    for i, (u0, v0) in enumerate(castle_textures.FRESCO_CELLS):
+    for i in range(4):
         with module('Fresco%d' % (i + 1)):
             # 2.4 m framed panel, back against a wall at local Y=0, painted side faces -Y
             box(-1.2, -1.1, -0.08, 0, 0, 2.4, 'wood', col=False)
             box(1.1, 1.2, -0.08, 0, 0, 2.4, 'wood', col=False)
             box(-1.1, 1.1, -0.08, 0, 0, 0.1, 'wood', col=False)
             box(-1.1, 1.1, -0.08, 0, 2.3, 2.4, 'wood', col=False)
-            emit([(-1.1, -0.02, 0.1), (1.1, -0.02, 0.1), (1.1, -0.02, 2.3), (-1.1, -0.02, 2.3)], 'fresco', col=False,
-                 uv=[(u0, v0), (u0 + 0.5, v0), (u0 + 0.5, v0 + 0.5), (u0, v0 + 0.5)])
+            # the picture has its own image: art/fresco1.* ... art/fresco4.*
+            emit([(-1.1, -0.02, 0.1), (1.1, -0.02, 0.1), (1.1, -0.02, 2.3), (-1.1, -0.02, 2.3)], 'fresco%d' % (i + 1),
+                 col=False, uv=[(0, 0), (1, 0), (1, 1), (0, 1)])
 
     with module('Tree'):
         drum(0, 0, 0.28, 0, 2.2, 'wood', col=False)
@@ -1079,7 +1085,7 @@ def make_materials(tex):
         return im
 
     def mat(name, color=(0.8, 0.8, 0.8), texture=None, normal=None, rough=0.85, metal=0.0, emit=None, strength=0.0):
-        m = bpy.data.materials.new('Castle_' + name)
+        m = bpy.data.materials.new(name if name.startswith('Art_') else 'Castle_' + name)
         if not m.node_tree or bpy.app.version < (5, 0, 0):
             m.use_nodes = True
         m.use_backface_culling = True
@@ -1108,7 +1114,8 @@ def make_materials(tex):
         m.diffuse_color = (*color, 1.0)
         return m
 
-    return {
+    mats = {name: mat('Art_' + name, texture=name, rough=0.9) for name in castle_textures.ART}
+    mats.update({
         'stone_wall': mat('StoneWall', texture='stone_wall', normal='stone_wall_n', rough=0.9),
         'stone_floor': mat('StoneFloor', texture='stone_floor', normal='stone_floor_n', rough=0.85),
         'wood': mat('Wood', texture='wood', rough=0.75),
@@ -1116,7 +1123,6 @@ def make_materials(tex):
         'roof': mat('RoofTiles', texture='roof', normal='roof_n', rough=0.8),
         'grass': mat('Grass', texture='grass', rough=1.0),
         'dirt': mat('Dirt', texture='dirt', rough=1.0),
-        'fresco': mat('Fresco', texture='fresco', rough=0.9),
         'iron': mat('Iron', (0.10, 0.10, 0.11), rough=0.55, metal=0.6),
         'gold': mat('Gold', (0.83, 0.62, 0.22), rough=0.4, metal=0.8),
         'cloth_red': mat('ClothRed', (0.50, 0.07, 0.07), rough=0.95),
@@ -1129,7 +1135,8 @@ def make_materials(tex):
         'flame': mat('Flame', (1.0, 0.40, 0.05), emit=(1.0, 0.30, 0.03), strength=1.8),
         'ember': mat('Ember', (0.45, 0.10, 0.03), emit=(1.0, 0.16, 0.02), strength=1.2),
         'collision': mat('Collision', (1.0, 0.0, 1.0)),
-    }
+    })
+    return mats
 
 
 def assemble(materials):
@@ -1181,6 +1188,31 @@ def assemble(materials):
     return stats
 
 
+ART_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'art') \
+    if '__file__' in globals() else os.path.abspath('art')
+
+
+def collect_art(tex_dir, size):
+    """Wall art comes from the repo's art/ folder. Missing pieces get a generated default
+    (saved as JPEG so the folder stays small); files already there are never overwritten."""
+    os.makedirs(ART_DIR, exist_ok=True)
+    found = {}
+    for name, make in castle_textures.ART.items():
+        path = castle_textures.find_art(ART_DIR, name)
+        if not path:
+            tmp = os.path.join(tex_dir, name + '.png')
+            castle_textures.write_png(tmp, make(size))
+            im = bpy.data.images.load(tmp)
+            path = os.path.join(ART_DIR, name + '.jpg')
+            bpy.context.scene.render.image_settings.file_format = 'JPEG'
+            bpy.context.scene.render.image_settings.quality = 88
+            im.save_render(path)
+            bpy.data.images.remove(im)
+            print('  wrote default', path)
+        found[name] = path
+    return found
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
     import argparse
@@ -1197,6 +1229,7 @@ def main():
     tex_dir = args.tex or os.path.join(tempfile.gettempdir(), 'clubhouse_castle_textures')
     print('Generating textures in', tex_dir)
     tex = castle_textures.generate_all(tex_dir, args.size)
+    tex.update(collect_art(tex_dir, args.size))
     build_all()
     stats = assemble(make_materials(tex))
     print('Visible triangles: %(vis)d   collision triangles: %(col)d   instances: %(inst)d' % stats)

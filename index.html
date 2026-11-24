@@ -250,6 +250,29 @@ if (level) loader.load(
 
     scene.add(model);
 
+    // Swappable wall art: a material named Art_<name> takes its picture from
+    // art/<name>.png (or .jpg / .webp) when that file exists, so frescoes and
+    // banners can be replaced by uploading an image; no Blender needed.
+    const artMaterials = new Map();
+    model.traverse((child) => {
+      const m = child.isMesh && child.material;
+      if (m && m.name.startsWith('Art_')) artMaterials.set(m.name.slice(4), m);
+    });
+    const artLoader = new THREE.TextureLoader();
+    for (const [name, material] of artMaterials) {
+      const tryNext = (exts) => {
+        if (!exts.length) return;               // nothing in art/: keep the built-in picture
+        artLoader.load('art/' + name + exts[0], (tex) => {
+          tex.flipY = false;
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          material.map = tex;
+          material.needsUpdate = true;
+        }, undefined, () => tryNext(exts.slice(1)));
+      };
+      tryNext(['.png', '.jpg', '.webp']);
+    }
+
     // Compute bounding box to position camera
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());

@@ -335,10 +335,9 @@ def _fresco_quartered(X, Y, S):
     return img
 
 
-def fresco_atlas(S, seed=8):
-    """2 x 2 atlas of painted panels. S is the full atlas size."""
+def fresco_panels(P, seed=8):
+    """Four square painted panels (the default wall art), each P pixels."""
     rng = np.random.default_rng(seed)
-    P = S // 2
     yy, xx = np.mgrid[0:P, 0:P]
     X = (xx + 0.5) / P
     Y = 1.0 - (yy + 0.5) / P
@@ -355,17 +354,50 @@ def fresco_atlas(S, seed=8):
         flake = smooth((fbm(P, 20, 20, rng, octaves=4) - 0.72) / 0.1)[..., None] * 0.7
         img = img * (1 - flake) + np.array([0.84, 0.79, 0.68]) * flake
         img += (rng.random((P, P, 1)) - 0.5) * 0.04
-        panels.append(img)
-    atlas = np.zeros((S, S, 3))
-    atlas[0:P, 0:P] = panels[0]
-    atlas[0:P, P:S] = panels[1]
-    atlas[P:S, 0:P] = panels[2]
-    atlas[P:S, P:S] = panels[3]
-    return to_u8(atlas)
+        panels.append(to_u8(img))
+    return panels
 
 
-# (u0, v0) of each fresco cell in the atlas, each cell is 0.5 x 0.5
-FRESCO_CELLS = ((0.0, 0.5), (0.5, 0.5), (0.0, 0.0), (0.5, 0.0))
+def banner(field, W=512, H=1024, seed=9):
+    """Default banner cloth (W x H, hangs with the top of the image at the rod).
+    The bottom corners are cut away by the banner's pointed shape."""
+    rng = np.random.default_rng(seed)
+    yy, xx = np.mgrid[0:H, 0:W]
+    X = (xx + 0.5) / W
+    Y = 1.0 - (yy + 0.5) / H
+    gold = (0.80, 0.60, 0.20)
+    img = np.ones((H, W, 3)) * np.array(field)
+    edge = np.minimum(X, 1 - X) * W
+    img = _paint(img, np.clip((0.07 * W - edge) / 1.5, 0, 1), gold)
+    img = _paint(img, np.clip((0.035 * W - edge) / 1.5, 0, 1), field)
+    img = _paint(img, _rect(X, Y, 0, 1, 0.93, 1.0, H), gold)
+    diamond = np.abs(X - 0.5) / 0.30 + np.abs(Y - 0.58) / 0.16 - 1.0
+    img = _paint(img, np.clip(0.5 - diamond * 40, 0, 1), gold)
+    weave = fbm(max(W, H), 6, 6, rng)[:H, :W]
+    img = img * (0.86 + 0.2 * weave[..., None])
+    return to_u8(img)
+
+
+# name -> generator for the default art; real files live in the repo's art/ folder
+ART = {
+    'fresco1': lambda size: fresco_panels(size)[0],
+    'fresco2': lambda size: fresco_panels(size)[1],
+    'fresco3': lambda size: fresco_panels(size)[2],
+    'fresco4': lambda size: fresco_panels(size)[3],
+    'banner_red': lambda size: banner((0.52, 0.08, 0.08)),
+    'banner_blue': lambda size: banner((0.10, 0.18, 0.44)),
+}
+ART_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.webp')
+
+
+def find_art(art_dir, name):
+    """Path of art/<name>.<ext> if the user (or a previous build) put one there."""
+    import os
+    for ext in ART_EXTENSIONS:
+        p = os.path.join(art_dir, name + ext)
+        if os.path.exists(p):
+            return p
+    return None
 
 
 def generate_all(out_dir, size=1024):
@@ -392,7 +424,6 @@ def generate_all(out_dir, size=1024):
     save('plaster', plaster(size))
     save('grass', grass(size))
     save('dirt', dirt(size))
-    save('fresco', fresco_atlas(size * 2))
     return paths
 
 
