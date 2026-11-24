@@ -26,6 +26,7 @@ console.log('Running validation checks...\n');
 // Check required files exist
 check('index.html exists', fs.existsSync(path.join(root, 'index.html')));
 check('Castle.glb exists', fs.existsSync(path.join(root, 'Castle.glb')));
+check('ClubhouseCastle.glb exists', fs.existsSync(path.join(root, 'ClubhouseCastle.glb')));
 
 // Check HTML content
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -33,6 +34,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 check('HTML has DOCTYPE declaration', html.includes('<!DOCTYPE html>'));
 check('HTML has Three.js import map', html.includes('"three"'));
 check('HTML references Castle.glb', html.includes('Castle.glb'));
+check('HTML lists the clubhouse level', html.includes("file: 'ClubhouseCastle.glb'"));
 check('HTML has start button', html.includes('id="startBtn"'));
 check('HTML has canvas setup (WebGLRenderer)', html.includes('WebGLRenderer'));
 check('HTML has GLTFLoader import', html.includes('GLTFLoader'));

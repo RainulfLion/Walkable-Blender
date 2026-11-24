@@ -28,6 +28,17 @@
   #start button:hover { background: #444; }
   #start button:disabled { opacity: 0.4; cursor: default; }
 
+  #levels { display: none; margin-top: 8px; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+  #levels a {
+    display: block; width: 260px; padding: 18px 20px;
+    background: #1c1c1c; border: 1px solid #555; color: #fff;
+    text-decoration: none; font-family: monospace; text-align: left;
+  }
+  #levels a:hover, #levels a:focus { background: #2a2a2a; border-color: #6cf; }
+  #levels b { display: block; font-size: 17px; margin-bottom: 8px; }
+  #levels span { color: #999; font-size: 12px; line-height: 1.6; }
+  #back { margin-top: 18px; color: #777; font-family: monospace; font-size: 12px; }
+
   #loadbar {
     width: 200px; height: 4px; background: #333;
     margin-top: 16px; border-radius: 2px; overflow: hidden;
@@ -65,8 +76,9 @@
 <body>
 
 <div id="start">
-  <h1>Castle Walkthrough</h1>
-  <p>
+  <h1 id="title">Castle Walkthrough</h1>
+  <div id="levels"></div>
+  <p id="controls">
     W / A / S / D — Move<br>
     Mouse — Look around<br>
     ESC — Release mouse<br>
@@ -75,6 +87,7 @@
   </p>
   <div id="loadbar"><div id="loadfill"></div></div>
   <button id="startBtn" disabled onclick="begin()">Loading…</button>
+  <a id="back" href="?">&larr; Choose another level</a>
 </div>
 
 <div id="hint">WASD to move · Mouse to look · ESC to release</div>
@@ -95,6 +108,53 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// ── Levels ────────────────────────────────────────────
+// Add a level by dropping its GLB next to this file and listing it here.
+// A GLB may contain: meshes named COL_* (invisible collision geometry) and
+// an empty named "Spawn" (player start + facing). Both are optional.
+const LEVELS = {
+  clubhouse: {
+    title: 'Clubhouse Castle',
+    file: 'ClubhouseCastle.glb',
+    blurb: 'Gatehouse and drawbridge, courtyard fighting pit, great hall, throne room, kitchen, armory and forge, tavern cellar, guest rooms, battlements and a spiral-stair tower.',
+    sky: 0x9fc6ea, sun: 2.4, sunColor: 0xfff1dc, hemi: 0.9, hemiSky: 0xcfe4ff, hemiGround: 0x6f6450, ambient: 0.25,
+  },
+  castle: {
+    title: 'Castle',
+    file: 'Castle.glb',
+    blurb: 'The original torch-lit castle level.',
+    sky: 0x1a1a2e, sun: 0.8, sunColor: 0xffffff, hemi: 0.2, hemiSky: 0x1a1a2e, hemiGround: 0x556633, ambient: 0.1,
+  },
+};
+const params = new URLSearchParams(location.search);
+const FLY = params.has('fly');
+const levelId = params.get('level');
+const level = LEVELS[levelId] || null;
+const env = level || LEVELS.castle;
+
+if (level) {
+  document.getElementById('title').textContent = level.title;
+  document.title = level.title + ' · Walkthrough';
+} else {
+  // No level chosen yet: show the picker, load nothing.
+  const list = document.getElementById('levels');
+  for (const [id, l] of Object.entries(LEVELS)) {
+    const a = document.createElement('a');
+    a.href = '?level=' + id;
+    const b = document.createElement('b');
+    b.textContent = l.title;
+    const sp = document.createElement('span');
+    sp.textContent = l.blurb;
+    a.append(b, sp);
+    list.appendChild(a);
+  }
+  list.style.display = 'flex';
+  document.getElementById('title').textContent = 'Choose a level';
+  for (const id of ['controls', 'loadbar', 'startBtn', 'back']) {
+    document.getElementById(id).style.display = 'none';
+  }
+}
+
 // ── Renderer ──────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -106,15 +166,15 @@ document.body.appendChild(renderer.domElement);
 
 // ── Scene ─────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
-scene.fog = new THREE.FogExp2(0x1a1a2e, 0.015);
+scene.background = new THREE.Color(env.sky);
+scene.fog = new THREE.FogExp2(env.sky, 0.015);
 
 // ── Camera ────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 2000);
 camera.position.set(0, 1.7, 5);
 
 // ── Lights ────────────────────────────────────────────
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+const sun = new THREE.DirectionalLight(env.sunColor, env.sun);
 sun.position.set(30, 50, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
@@ -128,10 +188,10 @@ sun.shadow.camera.top = 60;
 sun.shadow.camera.bottom = -60;
 scene.add(sun);
 
-const hemi = new THREE.HemisphereLight(0x1a1a2e, 0x556633, 0.2);
+const hemi = new THREE.HemisphereLight(env.hemiSky, env.hemiGround, env.hemi);
 scene.add(hemi);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+scene.add(new THREE.AmbientLight(0xffffff, env.ambient));
 
 // ── Load GLB Model ───────────────────────────────────
 const loader = new GLTFLoader();
@@ -139,19 +199,35 @@ const collisionMeshes = [];
 const torchLights = [];
 let modelLoaded = false;
 
-loader.load(
-  'Castle.glb',
+if (level) loader.load(
+  level.file,
   (gltf) => {
     const model = gltf.scene;
 
+    // Dedicated collision geometry: anything named COL_* (or inside such a node).
+    // It is never drawn; when present, it is the only thing the player collides with.
+    const dedicated = [];
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      for (let o = child; o && o !== model; o = o.parent) {
+        if (o.name.startsWith('COL_')) {
+          child.visible = false;
+          child.userData.collisionOnly = true;
+          dedicated.push(child);
+          break;
+        }
+      }
+    });
+    collisionMeshes.push(...dedicated);
+
     // Enable shadows on all meshes and collect for collision
     model.traverse((child) => {
-      if (child.isMesh) {
+      if (child.isMesh && !child.userData.collisionOnly) {
         child.castShadow = true;
         child.receiveShadow = true;
         // Skip flame/fire meshes from collision
         const name = child.name.toLowerCase();
-        if (!name.includes('flame') && !name.includes('fire') && !name.includes('particle')) {
+        if (!dedicated.length && !name.includes('flame') && !name.includes('fire') && !name.includes('particle')) {
           collisionMeshes.push(child);
         }
       }
@@ -197,15 +273,31 @@ loader.load(
     sun.target.position.copy(center);
     scene.add(sun.target);
 
-    // Start on the ground plane, outside the castle structure
-    camera.position.set(center.x, box.min.y + PLAYER_HEIGHT, center.z + size.z * 0.3);
+    // Start at the level's "Spawn" marker if it has one, else on the ground plane
+    // outside the structure. ?pos=x,y,z,yaw,pitch (degrees) overrides both.
     floorY = box.min.y;
+    const spawn = model.getObjectByName('Spawn');
+    if (spawn) {
+      model.updateMatrixWorld(true);
+      const p = spawn.getWorldPosition(new THREE.Vector3());
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(spawn.getWorldQuaternion(new THREE.Quaternion()));
+      camera.position.set(p.x, p.y + PLAYER_HEIGHT, p.z);
+      yaw = Math.atan2(-dir.x, -dir.z);
+    } else {
+      camera.position.set(center.x, box.min.y + PLAYER_HEIGHT, center.z + size.z * 0.3);
+    }
+    const pos = (params.get('pos') || '').split(',').map(Number);
+    if (pos.length >= 3 && pos.every(Number.isFinite)) {
+      camera.position.set(pos[0], pos[1], pos[2]);
+      if (pos.length > 3) yaw = pos[3] * Math.PI / 180;
+      if (pos.length > 4) pitch = pos[4] * Math.PI / 180;
+    }
 
     // Scale movement speed to model size
     moveSpeed = Math.max(6, maxDim * 0.03);
 
     // Adjust fog based on model size
-    scene.fog = new THREE.FogExp2(0x1a1a2e, 0.5 / maxDim);
+    scene.fog = new THREE.FogExp2(env.sky, 0.5 / maxDim);
 
     modelLoaded = true;
 
@@ -345,8 +437,9 @@ document.addEventListener('touchstart', e => {
     if (t.clientX < innerWidth/2) touch.lid = t.identifier;
     else touch.rid = t.identifier;
   });
-  if (document.getElementById('start').style.display !== 'none') {
+  if (modelLoaded && document.getElementById('start').style.display !== 'none') {
     document.getElementById('start').style.display = 'none';
+    started = true;
   }
 }, { passive: true });
 
@@ -440,14 +533,17 @@ function animate() {
   const nz = camera.position.z + mz * speed * dt;
 
   // Horizontal collision (slide along walls)
-  if (canMoveTo(nx, camera.position.z)) camera.position.x = nx;
-  if (canMoveTo(camera.position.x, nz)) camera.position.z = nz;
+  if (FLY || canMoveTo(nx, camera.position.z)) camera.position.x = nx;
+  if (FLY || canMoveTo(camera.position.x, nz)) camera.position.z = nz;
 
-  // Gravity & ground following
-  const groundY = getGroundHeight(camera.position.x, camera.position.z);
+  // Gravity & ground following (?fly=1: free camera, E/Q = up/down)
+  const groundY = FLY ? 0 : getGroundHeight(camera.position.x, camera.position.z);
   const targetY = groundY + PLAYER_HEIGHT;
 
-  if (camera.position.y > targetY + 0.05) {
+  if (FLY) {
+    if (keys['KeyE']) camera.position.y += speed * dt;
+    if (keys['KeyQ']) camera.position.y -= speed * dt;
+  } else if (camera.position.y > targetY + 0.05) {
     velocityY -= GRAVITY * dt;
     camera.position.y += velocityY * dt;
     onGround = false;
@@ -498,6 +594,14 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// Small handle for bookmarklets and automated walk tests
+window.walkthrough = {
+  camera, keys,
+  get yaw() { return yaw; }, set yaw(v) { yaw = v; },
+  get pitch() { return pitch; }, set pitch(v) { pitch = v; },
+  start() { window.begin(); },
+};
 
 animate();
 </script>
