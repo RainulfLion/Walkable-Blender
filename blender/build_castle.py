@@ -3,8 +3,8 @@
 Builds a low-poly medieval castle laid out for a first-person web
 walkthrough and exports it as a single GLB:
 
-    blender --background --python blender/build_castle.py -- --out ClubhouseCastle.glb
-    # or, with the pip "bpy" module:  python blender/build_castle.py --out ClubhouseCastle.glb
+    blender --background --python blender/build_castle.py -- --out Castle.glb
+    # or, with the pip "bpy" module:  python blender/build_castle.py --out Castle.glb
 
 You can also open this file in Blender's Scripting tab and press Run; the
 castle is added to the current scene in a "ClubhouseCastle" collection.
@@ -1217,7 +1217,7 @@ def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument('--out', default='ClubhouseCastle.glb')
+    ap.add_argument('--out', default='Castle.glb')
     ap.add_argument('--blend', default=None, help='also save a .blend here')
     ap.add_argument('--tex', default=None, help='directory for generated texture PNGs')
     ap.add_argument('--size', type=int, default=1024, help='texture size (1024 or 2048)')

@@ -26,7 +26,6 @@ console.log('Running validation checks...\n');
 // Check required files exist
 check('index.html exists', fs.existsSync(path.join(root, 'index.html')));
 check('Castle.glb exists', fs.existsSync(path.join(root, 'Castle.glb')));
-check('ClubhouseCastle.glb exists', fs.existsSync(path.join(root, 'ClubhouseCastle.glb')));
 
 // Check HTML content
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -38,7 +37,6 @@ for (const name of ['fresco1', 'fresco2', 'fresco3', 'fresco4', 'banner_red', 'b
   const found = ['.png', '.jpg', '.webp'].some((ext) => fs.existsSync(path.join(root, 'art', name + ext)));
   check(`art/${name} image exists`, found);
 }
-check('HTML lists the clubhouse level', html.includes("file: 'ClubhouseCastle.glb'"));
 check('HTML has start button', html.includes('id="startBtn"'));
 check('HTML has canvas setup (WebGLRenderer)', html.includes('WebGLRenderer'));
 check('HTML has GLTFLoader import', html.includes('GLTFLoader'));

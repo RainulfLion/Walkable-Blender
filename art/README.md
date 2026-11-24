@@ -1,6 +1,6 @@
 # Castle art
 
-The pictures on the walls and the banners of the Clubhouse Castle come from this
+The pictures on the walls and the banners of the castle come from this
 folder. To change one, replace its file with your own image **using the same name**,
 then reload the walkthrough (GitHub Pages can take a few minutes to pick it up).
 
@@ -23,4 +23,4 @@ Notes:
 - Keep files under about 1 MB each so the level stays quick to load.
 - The files here were generated as placeholders by `blender/build_castle.py`. That
   script never overwrites a file that is already in this folder, and it bakes
-  whatever is here into `ClubhouseCastle.glb` and the `.blend` the next time it runs.
+  whatever is here into `Castle.glb` and the `.blend` the next time it runs.
