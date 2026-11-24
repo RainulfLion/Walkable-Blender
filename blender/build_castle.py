@@ -904,7 +904,7 @@ def build_east_range():
         box(18, 25.2, 4.0, 15.2, -0.1, 0.05, 'stone_floor', zm=False)
         box(18, 25.2, -9.2, 3.2, -0.1, 0.05, 'dirt', zm=False)
         _timber(17.2, -1, (-10.1, -6.7, -0.5, 3.6, 8.7, 10.5, 16.1), -10.2, 16.2)
-        box(17.1, 18.05, -6.9, -0.3, 3.2, 3.5, 'wood', col=False)              # forge lintel beam
+        box(17.1, 18.05, -6.9, -0.3, 3.08, 3.5, 'wood', col=False)             # forge lintel beam (hangs below the plaster soffit)
 
         # ── forge ──
         box(23.4, 25.2, -5.2, -2.0, 0.05, 1.0, 'stone_wall', zm=False)
