@@ -113,28 +113,24 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // A GLB may contain: meshes named COL_* (invisible collision geometry) and
 // an empty named "Spawn" (player start + facing). Both are optional.
 const LEVELS = {
-  clubhouse: {
-    title: 'Clubhouse Castle',
-    file: 'ClubhouseCastle.glb',
+  castle: {
+    title: 'Castle Walkthrough',
+    file: 'Castle.glb',
     blurb: 'Gatehouse and drawbridge, courtyard fighting pit, great hall, throne room, kitchen, armory and forge, tavern cellar, guest rooms, battlements and a spiral-stair tower.',
     sky: 0x9fc6ea, sun: 2.4, sunColor: 0xfff1dc, hemi: 0.9, hemiSky: 0xcfe4ff, hemiGround: 0x6f6450, ambient: 0.25,
-  },
-  castle: {
-    title: 'Castle',
-    file: 'Castle.glb',
-    blurb: 'The original torch-lit castle level.',
-    sky: 0x1a1a2e, sun: 0.8, sunColor: 0xffffff, hemi: 0.2, hemiSky: 0x1a1a2e, hemiGround: 0x556633, ambient: 0.1,
   },
 };
 const params = new URLSearchParams(location.search);
 const FLY = params.has('fly');
-const levelId = params.get('level');
-const level = LEVELS[levelId] || null;
-const env = level || LEVELS.castle;
+const levelIds = Object.keys(LEVELS);
+// With a single level there is nothing to choose: load it straight away.
+const level = LEVELS[params.get('level')] || (levelIds.length === 1 ? LEVELS[levelIds[0]] : null);
+const env = level || LEVELS[levelIds[0]];
 
 if (level) {
   document.getElementById('title').textContent = level.title;
-  document.title = level.title + ' · Walkthrough';
+  document.title = level.title;
+  if (levelIds.length === 1) document.getElementById('back').style.display = 'none';
 } else {
   // No level chosen yet: show the picker, load nothing.
   const list = document.getElementById('levels');

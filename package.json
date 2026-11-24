@@ -9,7 +9,7 @@
     "optimize": "node scripts/optimize-glb.mjs",
     "optimize:2k": "node scripts/optimize-glb.mjs Castle.glb Castle.glb --max-size 2048 --quality 85",
     "optimize:1k": "node scripts/optimize-glb.mjs Castle.glb Castle.glb --max-size 1024 --quality 80",
-    "build:castle": "python3 blender/build_castle.py --out ClubhouseCastle.glb"
+    "build:castle": "python3 blender/build_castle.py --out Castle.glb"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.3.0",
