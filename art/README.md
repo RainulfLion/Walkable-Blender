@@ -24,3 +24,9 @@ Notes:
 - The files here were generated as placeholders by `blender/build_castle.py`. That
   script never overwrites a file that is already in this folder, and it bakes
   whatever is here into `Castle.glb` and the `.blend` the next time it runs.
+
+## Occidentals crest
+
+`banner_red`, `banner_blue` and `fresco4` are made from `source/occidentals_crest.jpg`
+by `blender/make_crest_art.py`. Swap the source image and re-run that script to
+rebuild all three, or just replace any of the three files directly.
