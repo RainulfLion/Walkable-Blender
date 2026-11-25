@@ -733,6 +733,48 @@ def build_gatehouse():
         place('BannerBlue', 3.3, -28, 6.6)
 
 
+def _pit_shelter():
+    """Open timber rain cover over the fighting pit: six posts on the rim, a pitched
+    plank roof with its ridge running north-south, all four sides left open."""
+    W = 'wood'
+    rows = (-11.7, -4.0, 3.7)                       # post rows (y); pit spans y -11..3
+    px = 7.7                                        # posts stand just outside the rim (x = +-7)
+    ridge, eave_x = 7.2, 8.7
+    k = (ridge - 4.5) / px                          # roof slope
+    eave_z = 4.5 - k * (eave_x - px)
+    y0, y1 = -12.6, 4.6
+    for sx in (-1, 1):
+        x = sx * px
+        for y in rows:
+            box(x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 3.95, W, zm=False)      # post (solid to walk into)
+            for d in (-1, 1):                                                   # knee braces along the plate
+                if (y == rows[0] and d < 0) or (y == rows[-1] and d > 0):
+                    continue
+                prof = [(x - 0.07, y + d * 0.15, 2.85), (x - 0.07, y + d * 1.2, 3.95),
+                        (x - 0.07, y + d * 0.98, 3.95), (x - 0.07, y + d * 0.15, 3.08)]
+                extrude(prof, (0.14, 0, 0), W, col=False)
+            prof = [(x - sx * 0.15, y - 0.07, 2.85), (x - sx * 1.2, y - 0.07, 4.2),          # brace up to the tie beam
+                    (x - sx * 0.98, y - 0.07, 4.2), (x - sx * 0.15, y - 0.07, 3.08)]
+            extrude(prof, (0, 0.14, 0), W, col=False)
+        box(x - 0.13, x + 0.13, y0 + 0.4, y1 - 0.4, 3.95, 4.2, W, col=False)        # wall plate
+        # roof slope: boards above, same boards seen from below
+        nrm = np.array([sx * (ridge - 4.5), 0, px]) / math.hypot(ridge - 4.5, px) * 0.12
+        a, b = (0, eave_x) if sx > 0 else (-eave_x, 0)
+        za, zb = (ridge, eave_z) if sx > 0 else (eave_z, ridge)
+        extrude([(a, y0, za), (b, y0, zb), (b, y1, zb), (a, y1, za)], nrm, W, col=False)
+        for y in (-11.7, -9.13, -6.57, -4.0, -1.43, 1.13, 3.7):                   # rafters under the boards
+            extrude([(0, y - 0.07, ridge - 0.22), (sx * eave_x, y - 0.07, eave_z - 0.22),
+                     (sx * eave_x, y - 0.07, eave_z), (0, y - 0.07, ridge)], (0, 0.14, 0), W, col=False)
+    for y in rows:
+        box(-px - 0.25, px + 0.25, y - 0.12, y + 0.12, 4.2, 4.48, W, col=False)     # tie beam
+        box(-0.1, 0.1, y - 0.1, y + 0.1, 4.48, ridge - 0.2, W, col=False)           # king post
+    box(-0.11, 0.11, y0, y1, ridge - 0.42, ridge - 0.2, W, col=False)               # ridge beam
+    box(-0.2, 0.2, y0, y1, ridge + 0.02, ridge + 0.2, W, col=False)                 # ridge cap
+    for y in (-4.0,):
+        place('BannerRed', -2.6, y - 0.13, 4.2)
+        place('BannerBlue', 2.6, y - 0.13, 4.2)
+
+
 def build_courtyard():
     with section('Courtyard'):
         holes = [(-7, 7, -11, 3),                    # fighting pit
@@ -749,6 +791,7 @@ def build_courtyard():
         stair(-1, -7.5, -1.6, -90, 5, 0.16, 0.3, 2.0)           # south: terrace -> arena
         stair(1, 1.5, -0.8, 90, 5, 0.16, 0.3, 2.0)              # north: yard -> terrace
         stair(1, -0.5, -1.6, 90, 5, 0.16, 0.3, 2.0)             # north: terrace -> arena
+        _pit_shelter()
         for x, y in ((-6, -10), (6, -10), (-6, 2), (6, 2)):
             place('Brazier', x, y, -0.8)
         place('WeaponRack', -6.4, -4, -0.8, rot=90)
