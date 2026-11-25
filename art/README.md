@@ -7,11 +7,13 @@ then reload the walkthrough (GitHub Pages can take a few minutes to pick it up).
 | File | Where it shows | Shape |
 | --- | --- | --- |
 | `fresco1` | Great hall, north wall (far left); east wall | square, e.g. 1024 x 1024 |
-| `fresco2` | Great hall, north wall; west wall | square |
-| `fresco3` | Great hall, north wall; west wall | square |
+| `fresco2` | Great hall, north wall (left of the hearth) | square |
+| `fresco3` | Great hall, north wall (right of the hearth) | square |
 | `fresco4` | Great hall, north wall (far right); throne room | square |
-| `banner_red` | Gatehouse, great hall front, throne room, tall tower | tall, 1 : 2.4, e.g. 512 x 1229 |
-| `banner_blue` | Gatehouse, great hall front, throne room | tall, 1 : 2.4 |
+| `fresco5` | Great hall, west wall (left of the throne room door) | square |
+| `fresco6` | Great hall, west wall (right of the throne room door) | square |
+| `banner_red` | Gatehouse, great hall front, throne room, tall tower, pit shelter | tall, 1 : 2.4, e.g. 512 x 1229 |
+| `banner_blue` | Gatehouse, great hall front, throne room, pit shelter | tall, 1 : 2.4 |
 
 Notes:
 
@@ -35,6 +37,8 @@ away each image's background:
 | `banner_red`, `banner_blue`, `fresco4` | `source/occidentals_crest.jpg` |
 | `fresco1` | `source/lion_crescent.webp` |
 | `fresco2` | `source/lion_star.webp` |
+| `fresco5` | `source/eagle_gold.png` |
+| `fresco6` | `source/eagle_black.png` |
 
 `fresco3` (the tree) is still a generated placeholder. Swap a source image and
 re-run the script to rebuild, or just replace any finished file directly.

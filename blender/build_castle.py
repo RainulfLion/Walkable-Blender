@@ -608,14 +608,14 @@ def define_modules():
             emit([(x, -0.05, z) for x, z in front], art, col=False,
                  uv=[(x + 0.5, (z + 2.4) / 2.4) for x, z in front])
 
-    for i in range(4):
+    for i in range(6):
         with module('Fresco%d' % (i + 1)):
             # 2.4 m framed panel, back against a wall at local Y=0, painted side faces -Y
             box(-1.2, -1.1, -0.08, 0, 0, 2.4, 'wood', col=False)
             box(1.1, 1.2, -0.08, 0, 0, 2.4, 'wood', col=False)
             box(-1.1, 1.1, -0.08, 0, 0, 0.1, 'wood', col=False)
             box(-1.1, 1.1, -0.08, 0, 2.3, 2.4, 'wood', col=False)
-            # the picture has its own image: art/fresco1.* ... art/fresco4.*
+            # the picture has its own image: art/fresco1.* ... art/fresco6.*
             emit([(-1.1, -0.02, 0.1), (1.1, -0.02, 0.1), (1.1, -0.02, 2.3), (-1.1, -0.02, 2.3)], 'fresco%d' % (i + 1),
                  col=False, uv=[(0, 0), (1, 0), (1, 1), (0, 1)])
 
@@ -880,8 +880,8 @@ def build_north_range():
         _hearth(0, 3.6)
         for i, x in enumerate((-8.4, -5.2, 5.2, 8.4)):
             place('Fresco%d' % (i + 1), x, 31.2, 1.9)
-        place('Fresco2', -11.0, 22.3, 2.0, rot=90, scale=0.85)
-        place('Fresco3', -11.0, 29.0, 2.0, rot=90, scale=0.85)
+        place('Fresco5', -11.0, 22.3, 2.0, rot=90, scale=0.85)
+        place('Fresco6', -11.0, 29.0, 2.0, rot=90, scale=0.85)
         place('Fresco1', 11.0, 27.4, 2.0, rot=-90, scale=0.95)
         for y in (23.2, 28.0):
             for x in (-7.25, -3.75, 3.75, 7.25):
