@@ -1247,6 +1247,7 @@ def collect_art(tex_dir, size):
             castle_textures.write_png(tmp, make(size))
             im = bpy.data.images.load(tmp)
             path = os.path.join(ART_DIR, name + '.jpg')
+            bpy.context.scene.view_settings.view_transform = 'Standard'   # save colours as painted
             bpy.context.scene.render.image_settings.file_format = 'JPEG'
             bpy.context.scene.render.image_settings.quality = 88
             im.save_render(path)
