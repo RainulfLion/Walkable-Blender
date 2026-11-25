@@ -25,8 +25,16 @@ Notes:
   script never overwrites a file that is already in this folder, and it bakes
   whatever is here into `Castle.glb` and the `.blend` the next time it runs.
 
-## Occidentals crest
+## Where the current art comes from
 
-`banner_red`, `banner_blue` and `fresco4` are made from `source/occidentals_crest.jpg`
-by `blender/make_crest_art.py`. Swap the source image and re-run that script to
-rebuild all three, or just replace any of the three files directly.
+`blender/make_crest_art.py` builds these from the originals in `source/`, cutting
+away each image's background:
+
+| File | Made from |
+| --- | --- |
+| `banner_red`, `banner_blue`, `fresco4` | `source/occidentals_crest.jpg` |
+| `fresco1` | `source/lion_crescent.webp` |
+| `fresco2` | `source/lion_star.webp` |
+
+`fresco3` (the tree) is still a generated placeholder. Swap a source image and
+re-run the script to rebuild, or just replace any finished file directly.
