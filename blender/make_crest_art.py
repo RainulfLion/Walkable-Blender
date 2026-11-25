@@ -2,7 +2,8 @@
 
     python blender/make_crest_art.py        (needs Blender's Python or `pip install bpy`)
 
-Writes art/banner_red.jpg, art/banner_blue.jpg and art/fresco4.jpg.
+Writes art/banner_red.jpg, art/banner_blue.jpg, art/fresco4.jpg (Occidentals crest)
+and art/fresco1.jpg, art/fresco2.jpg (the two lion shields).
 """
 import os
 import sys
@@ -19,12 +20,13 @@ PARCHMENT = np.array([0.905, 0.870, 0.795])
 GOLD = np.array([0.80, 0.60, 0.20])
 
 
-def load(path):
+def load(path, with_alpha=False):
     im = bpy.data.images.load(path)
+    im.alpha_mode = 'STRAIGHT'
     w, h = im.size
-    a = np.array(im.pixels[:]).reshape(h, w, 4)[::-1, :, :3].copy()
+    a = np.array(im.pixels[:]).reshape(h, w, 4)[::-1].copy()
     bpy.data.images.remove(im)
-    return a
+    return (a[..., :3], a[..., 3:4]) if with_alpha else a[..., :3]
 
 
 def resize(img, w, h):
@@ -74,6 +76,29 @@ def cutout(crop):
             break
         bg = grow
     bg |= (diff < 0.07) & warm & (crop.min(axis=2) > 0.70)      # enclosed pockets
+    return _soften(bg)
+
+
+def cutout_white(img):
+    """Alpha mask for art on a plain white page: only white that touches the edge of
+    the image is removed, so white charges inside the shield are kept."""
+    cand = img.min(axis=2) > 0.90
+    bg = np.zeros(cand.shape, bool)
+    bg[0, :], bg[-1, :], bg[:, 0], bg[:, -1] = cand[0, :], cand[-1, :], cand[:, 0], cand[:, -1]
+    while True:
+        grow = bg.copy()
+        grow[1:, :] |= bg[:-1, :]
+        grow[:-1, :] |= bg[1:, :]
+        grow[:, 1:] |= bg[:, :-1]
+        grow[:, :-1] |= bg[:, 1:]
+        grow &= cand
+        if (grow == bg).all():
+            break
+        bg = grow
+    return _soften(bg)
+
+
+def _soften(bg):
     fg = (~bg).astype(float)
     # pull the edge in by a pixel and soften it so no pale fringe is left
     er = fg.copy()
@@ -103,10 +128,10 @@ def banner(crest, alpha, field):
     return img
 
 
-def picture(crest, alpha, field):
-    """1024 square wall picture: the crest on a plain painted field with a gold border."""
+def picture(crest, alpha, field, height=876):
+    """1024 square wall picture: the arms on a plain painted field with a gold border."""
     img = np.ones((1024, 1024, 3)) * field
-    width = 600
+    width = round(crest.shape[1] * height / crest.shape[0])
     h = round(crest.shape[0] * width / crest.shape[1])
     place(img, crest, alpha, width, 512, (1024 - h) // 2)
     yy, xx = np.mgrid[0:1024, 0:1024]
@@ -122,7 +147,14 @@ def main():
     alpha = cutout(crest)
     save_jpg('banner_red', banner(crest, alpha, np.array([0.60, 0.10, 0.10])))
     save_jpg('banner_blue', banner(crest, alpha, np.array([0.12, 0.22, 0.52])))
-    save_jpg('fresco4', picture(crest, alpha, np.array([0.10, 0.22, 0.17])))
+    green = np.array([0.10, 0.22, 0.17])
+    save_jpg('fresco4', picture(crest, alpha, green))
+    # the two lion shields replace the placeholder castle (fresco1) and device (fresco2)
+    for name, source in (('fresco1', 'lion_crescent.webp'), ('fresco2', 'lion_star.webp')):
+        shield, alpha = load(os.path.join(ART, 'source', source), with_alpha=True)
+        if alpha.min() > 0.99:                            # no transparency in the file: key out white
+            alpha = cutout_white(shield)
+        save_jpg(name, picture(shield, alpha, green, height=800))
 
 
 if __name__ == '__main__':
