@@ -3,7 +3,7 @@
     python blender/make_crest_art.py        (needs Blender's Python or `pip install bpy`)
 
 Writes art/banner_red.jpg, art/banner_blue.jpg, art/fresco4.jpg (Occidentals crest)
-and art/fresco1.jpg, art/fresco2.jpg (the two lion shields).
+and art/fresco1.jpg, art/fresco2.jpg (lion shields), art/fresco5.jpg, art/fresco6.jpg (eagle shields).
 """
 import os
 import sys
@@ -150,10 +150,17 @@ def main():
     green = np.array([0.10, 0.22, 0.17])
     save_jpg('fresco4', picture(crest, alpha, green))
     # the two lion shields replace the placeholder castle (fresco1) and device (fresco2)
-    for name, source in (('fresco1', 'lion_crescent.webp'), ('fresco2', 'lion_star.webp')):
+    for name, source in (('fresco1', 'lion_crescent.webp'), ('fresco2', 'lion_star.webp'),
+                         ('fresco5', 'eagle_gold.png'), ('fresco6', 'eagle_black.png')):
         shield, alpha = load(os.path.join(ART, 'source', source), with_alpha=True)
+        if shield.shape[0] < 600:                         # small originals: enlarge before cutting out
+            f = 4
+            alpha = resize(np.repeat(alpha, 3, axis=2), shield.shape[1] * f, shield.shape[0] * f)[..., :1]
+            shield = resize(shield, shield.shape[1] * f, shield.shape[0] * f)
         if alpha.min() > 0.99:                            # no transparency in the file: key out white
             alpha = cutout_white(shield)
+        ys, xs = np.where(alpha[..., 0] > 0.5)            # trim empty margins so the shield is centred
+        shield, alpha = shield[ys.min():ys.max() + 1, xs.min():xs.max() + 1], alpha[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
         save_jpg(name, picture(shield, alpha, green, height=800))
 
 

@@ -384,6 +384,8 @@ ART = {
     'fresco2': lambda size: fresco_panels(size)[1],
     'fresco3': lambda size: fresco_panels(size)[2],
     'fresco4': lambda size: fresco_panels(size)[3],
+    'fresco5': lambda size: fresco_panels(size)[1],
+    'fresco6': lambda size: fresco_panels(size)[3],
     'banner_red': lambda size: banner((0.52, 0.08, 0.08)),
     'banner_blue': lambda size: banner((0.10, 0.18, 0.44)),
 }
